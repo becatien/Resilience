@@ -1,0 +1,200 @@
+ This code put together subfiles from each round and put all the rounds together and merge them with the distances from Jack and suri study
+
+* Laptop path
+
+global raw1 "E:\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\Round1"
+global raw2 "E:\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\Round2"
+global raw3 "E:\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\Round3"
+global raw5 "E:\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\Round5"
+global raw6 "E:\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\jacksuri" 
+global dat  "E:\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\data"
+
+* Desktop path
+
+global raw1 "C:\Users\BYao\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\Round1"
+global raw2 "C:\Users\BYao\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\Round2"
+global raw3 "C:\Users\BYao\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\Round3"
+global raw5 "C:\Users\BYao\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\Round5"
+global raw6 "C:\Users\BYao\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\rawdata\jacksuri" 
+global dat  "C:\Users\BYao\OneDrive\2_RESEARCH\RESEARCH_PROJECTS\DISSERTATION\ESSAY_3\analysis\data"
+
+** combining data subfiles containing demographics, assets, mobile money **
+
+* File for round1
+use "$raw1\r1s5_real.dta", clear
+local xvar total_value
+foreach X of local xvar{
+	replace `X' = 0 if missing(`X')
+	replace `X' = 0 if `X' == 9999999
+}
+collapse (sum) TV1=total_value, by(hhid)
+merge 1:1 hhid using "$raw1\r1s2.dta"
+drop _merge
+sort hhid
+gen round = 1
+gen TV0 = .
+keep hhid round TV0 TV1 size head_age head_gender head_marital head_education read write
+
+save  "$dat\round1b.dta", replace
+
+* File for round2
+
+** Livestock file
+use "$raw2\r2s4_livestock.dta", clear
+local xvar total_value
+foreach X of local xvar{
+	replace `X' = 0 if missing(`X')
+	replace `X' = 0 if `X' == 9999999
+}
+collapse (sum) TVL2 =total_value, by(hhid)
+tempfile temp2
+save temp2
+
+use "$raw2\r2s4_real.dta", clear
+local xvar total_value
+foreach X of local xvar{
+	replace `X' = 0 if missing(`X')
+	replace `X' = 0 if `X' == 9999999
+}
+collapse (sum) TVR2=total_value, by(hhid)
+
+merge 1:1 hhid using temp2
+drop _merge
+gen TV2 = TVR2 + TVL2
+drop TVR2 TVL2
+
+merge 1:1 hhid using "$raw2\r2s2.dta"
+drop _merge
+sort hhid
+gen round = 2
+merge 1:1 hhid using "$dat\round1b.dta", keepusing(TV1)
+drop _merge
+keep hhid round TV2 TV1 size head_age head_gender head_marital head_education read write
+save "$dat\round2b.dta", replace
+
+
+* File for round3
+
+** Livestock file
+use "$raw3\r3s4_livestock.dta", clear
+local xvar total_value
+foreach X of local xvar{
+	replace `X' = 0 if missing(`X')
+	replace `X' = 0 if `X' == 9999999
+}
+collapse (sum) TVL3 =total_value, by(hhid)
+tempfile temp3
+save temp3
+
+use "$raw3\r3s4_real.dta", clear
+local xvar total_value
+foreach X of local xvar{
+	replace `X' = 0 if missing(`X')
+	replace `X' = 0 if `X' == -99
+	replace `X' = 0 if `X' == -9
+}
+collapse (sum) TVR3=total_value, by(hhid)
+
+merge 1:1 hhid using temp3
+drop _merge
+gen TV3 = TVR3 + TVL3
+drop TVR3 TVL3
+
+merge 1:1 hhid using "$raw3\r3s2.dta"
+drop _merge
+sort hhid
+gen round = 3
+merge 1:1 hhid using "$dat\round2b.dta", keepusing(TV2)
+drop _merge
+keep hhid round TV3 TV2 size head_age head_gender head_marital head_education read write
+save "$dat\round3b.dta", replace
+
+
+
+* File for round5
+
+** Livestock file
+use "$raw5\r5s4_livestock.dta", clear
+local xvar total_value
+foreach X of local xvar{
+	replace `X' = 0 if missing(`X')
+	replace `X' = 0 if `X' == 9999999
+}
+collapse (sum) TVL5 =total_value, by(hhid)
+tempfile temp5
+save temp5
+
+use "$raw5\r5s4_real.dta", clear
+local xvar total_value
+foreach X of local xvar{
+	replace `X' = 0 if missing(`X')
+	replace `X' = 0 if `X' == -99
+}
+collapse (sum) TVR5=total_value, by(hhid)
+
+merge 1:1 hhid using temp5
+drop _merge
+gen TV5 = TVR5 + TVL5
+drop TVR5 TVL5
+
+merge 1:1 hhid using "$raw5\r5s2_3.dta"
+drop _merge
+sort hhid
+gen round = 5
+merge 1:1 hhid using "$dat\round3b.dta", keepusing(TV3)
+drop _merge
+keep hhid round TV5 TV3 size head_age head_gender head_marital head_education read write
+save "$dat\round5b.dta", replace
+
+* merging files to produce final dataset
+erase temp2.dta
+erase temp3.dta
+erase temp5.dta
+use "$dat\round1b.dta", clear
+rename TV1 TV
+rename TV0 lagTV
+save "$dat\round1b.dta", replace
+use "$dat\round2b.dta", clear
+rename TV2 TV
+rename TV1 lagTV
+save "$dat\round2b.dta", replace
+use "$dat\round3b.dta", clear
+rename TV3 TV
+rename TV2 lagTV
+save "$dat\round3b.dta", replace
+use "$dat\round5b.dta", clear
+rename TV5 TV
+rename TV3 lagTV
+save "$dat\round5b.dta", replace
+
+use "$dat\round1b.dta", clear
+order hhid round  TV  lagTV  size head_age head_gender head_marital head_education read write, first
+
+append using "$dat\round2b.dta"
+append using "$dat\round3b.dta"
+append using "$dat\round5b.dta"
+keep  hhid round  TV  lagTV  size head_age head_gender head_marital head_education read write
+order hhid round  TV  lagTV  size head_age head_gender head_marital head_education read write, first
+sort  hhid round
+save  "$dat\resilience_b.dta", replace
+
+use "$dat\resilience_b.dta", clear
+drop if missing(round)
+sort hhid
+bysort hhid: drop if _N <4
+merge m:1 hhid using "$raw6\extract_aer.dta"
+drop if _merge != 3
+replace TV = 0 if missing(TV)
+replace lagTV = 0 if missing(TV)
+replace TV = TV/1000
+replace lagTV = lagTV/1000
+
+gen lagTV2 = (lagTV)^2
+gen lagTV3 = (lagTV)^6
+gen lagTV4 = (lagTV)^9
+rename head_age age
+rename head_education educ
+rename occ_farmer farmer
+gen age2 = (age)^2
+save  "$dat\resilience_b.dta", replace
+
